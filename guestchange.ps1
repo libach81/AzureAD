@@ -10,7 +10,7 @@ This is done using a set of menus that query for information to determine what t
 No examples available, commandline input is not required.
 
 .NOTES
-
+Function written by anders.libach.johansen@atea.dk
 #>
 
 ### Check if Azure AD Preview Module is installed on device
@@ -29,7 +29,7 @@ else {
 ### Command for connecting to Azure AD, will prompt for credentials
 Write-Host "Connecting to Azure AD..." -foregroundcolor Yellow
 sleep 2
-#Connect-AzureAD
+Connect-AzureAD
 
 Write-Host "Sucessfully connected to Azure AD" -ForegroundColor Green
 
@@ -123,7 +123,19 @@ User also has the option of cancelling the request after which the function will
 function teamsetting {
     $getobjectsetting = Get-AzureADObjectSetting -TargetObjectId $groupid -TargetType Groups
     $guestsetting = $getobjectsetting.Values
-    $templateid = Get-AzureADObjectSetting -TargetObjectId $groupid -TargetType Groups | Where-Object {$_.displayname -eq "group.unified.guest"}
+    if (!$guestsetting) {
+        Write-Host "This team was created using other methods than the designated app. Loading directory templates to team before proceeding..." -ForegroundColor Yellow
+        $Template1 = Get-AzureADDirectorySettingTemplate -Id 08d542b9-071f-4e16-94b0-74abb372e3d9
+        $SettingCopy = $Template1.CreateDirectorySetting()
+        $SettingCopy["AllowToAddGuests"]=$True
+        New-AzureADObjectSetting -TargetType Groups -TargetObjectId $groupID -DirectorySetting $SettingCopy
+        $getobjectsetting = Get-AzureADObjectSetting -TargetObjectId $groupid -TargetType Groups
+        $guestsetting = $getobjectsetting.Values
+    }
+    else {
+        $templateid = Get-AzureADObjectSetting -TargetObjectId $groupid -TargetType Groups | Where-Object {$_.displayname -eq "group.unified.guest"}    
+    }
+    
     if ($guestsetting -match "False") {
         $currentguestsetting = "closed to guests"
     }
@@ -143,7 +155,7 @@ function teamsetting {
     elseif ($mainmenuanswer -eq "2") {
         Write-Host "---------------------------------------------------------"
         Write-Host ""
-        Write-Host "The team is currently $currentguestsetting, do you wish to change this (y/n)?"
+        Write-Host "The team $teamname is currently $currentguestsetting, do you wish to change this (y/n)?"
         Write-Host ""
         Write-Host "---------------------------------------------------------"
         $changeanswer = read-host "Please Make a Selection" 
